@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BookHawk - Your Personal Reading Tracker</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <!-- Chosen Palette: Energetic & Playful (#FFD166, #06D6A0, #EF476F, #118AB2) -->
+    <!-- Application Structure Plan: The infographic uses a linear, single-column scrolling narrative to guide users on a feature tour. It starts with a hero section to grab attention, moves to the core user journey (Add -> Drag -> Log), showcases rewarding features (Stats, Customization), builds trust (Data Management), and ends with technical specs. This top-to-bottom flow is the most intuitive way to introduce an application's value proposition sequentially. -->
+    <!-- Visualization & Content Choices: 
+        - App Mockup (Hero): Goal: Inform. Method: Styled HTML/CSS. Justification: Provides an immediate visual context for the app.
+        - Core Flow Diagram: Goal: Organize. Method: HTML/CSS with icons. Justification: Clearly illustrates the main user process step-by-step. NO MERMAID.
+        - Big Stats (Books/Pages): Goal: Inform. Method: Large HTML text. Justification: Makes key metrics impactful.
+        - Streak Donut Chart: Goal: Inform/Compare. Method: Chart.js Canvas. Justification: More visually engaging than a simple number for showing progress towards a goal.
+        - Book Card Examples: Goal: Inform. Method: Styled HTML/CSS. Justification: Visually demonstrates the unique cover generation and rating features.
+        - Feature Lists (Data, Tech Specs): Goal: Organize. Method: HTML lists with icons. Justification: Clean, scannable, and easy to digest.
+        - CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. 
+    -->
+
+    <style>
+        body {
+            font-family: 'Poppins', sans-serif;
+            background-color: #F7FAFC;
+        }
+        .text-shadow-custom {
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.1);
+        }
+        .icon-circle {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            height: 4rem;
+            width: 4rem;
+            border-radius: 9999px;
+            color: white;
+        }
+        .flow-arrow {
+            color: #CBD5E0;
+        }
+        .card-gradient {
+            background: linear-gradient(145deg, #ffffff, #F1F5F9);
+        }
+    </style>
+</head>
+<body class="text-gray-800">
+
+    <main class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12 sm:py-16">
+
+        <header class="text-center mb-16">
+            <h1 class="text-5xl md:text-6xl font-bold text-shadow-custom" style="color: #118AB2;">🦅 BookHawk</h1>
+            <p class="mt-4 text-lg md:text-xl text-gray-600">Your personal, private, and powerful reading tracker.</p>
+        </header>
+
+        <section class="mb-20">
+            <h2 class="text-3xl font-bold text-center mb-10">Bring Your Library to Life</h2>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-8 text-center">
+                <div class="flex flex-col items-center">
+                    <div class="icon-circle mb-4" style="background-color: #118AB2;">
+                        <i class="fa-solid fa-book-medical fa-2x"></i>
+                    </div>
+                    <h3 class="text-xl font-semibold mb-2">Add Books Easily</h3>
+                    <p class="text-gray-600">Quickly add any book to your "On the Shelf" list to start building your personal library.</p>
+                </div>
+                <div class="flex flex-col items-center">
+                    <div class="icon-circle mb-4" style="background-color: #06D6A0;">
+                        <i class="fa-solid fa-hand-pointer fa-2x"></i>
+                    </div>
+                    <h3 class="text-xl font-semibold mb-2">Drag & Drop Shelves</h3>
+                    <p class="text-gray-600">Intuitively manage your reading flow by dragging books between shelves. It’s that simple!</p>
+                </div>
+                <div class="flex flex-col items-center">
+                    <div class="icon-circle mb-4" style="background-color: #EF476F;">
+                        <i class="fa-solid fa-calendar-check fa-2x"></i>
+                    </div>
+                    <h3 class="text-xl font-semibold mb-2">Log Daily Progress</h3>
+                    <p class="text-gray-600">Click any day on the calendar to log your reading and watch your activity streaks grow.</p>
+                </div>
+            </div>
+        </section>
+
+        <section class="card-gradient p-8 rounded-2xl shadow-lg mb-20">
+            <h2 class="text-3xl font-bold text-center mb-10">Watch Your Stats Soar</h2>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-8 items-center">
+                <div class="text-center">
+                    <p class="text-6xl font-bold" style="color: #118AB2;">12</p>
+                    <p class="text-lg text-gray-600 font-semibold">Books Completed</p>
+                </div>
+                <div class="text-center">
+                    <p class="text-6xl font-bold" style="color: #06D6A0;">3.8K</p>
+                    <p class="text-lg text-gray-600 font-semibold">Pages Read</p>
+                </div>
+                <div class="text-center relative h-48 w-48 mx-auto chart-container">
+                    <canvas id="streakChart"></canvas>
+                    <div class="absolute inset-0 flex flex-col items-center justify-center">
+                        <p class="text-4xl font-bold" style="color: #EF476F;">21</p>
+                         <p class="text-sm text-gray-600 font-semibold">Day Streak</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="mb-20">
+            <h2 class="text-3xl font-bold text-center mb-10">A Library as Unique as You</h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-8 items-center">
+                <div class="text-gray-600 text-lg">
+                    <p class="mb-4">BookHawk automatically generates a unique, vibrant cover for every book you add, making your digital bookshelf a beautiful and eclectic collection.</p>
+                    <p>Click any book to add your personal 5-star rating and detailed review, creating a rich diary of your reading journey.</p>
+                </div>
+                <div>
+                     <div class="grid grid-cols-2 gap-4">
+                        <div class="p-3 rounded-xl shadow-md card-gradient">
+                            <div class="w-full h-40 rounded-md text-white flex flex-col justify-between p-4" style="background: linear-gradient(135deg, #DA4453, #89216B);">
+                                <div class="font-bold text-xl leading-tight">Cosmic<br>Odyssey</div>
+                                <div class="text-right text-sm opacity-80">by A. Writer</div>
+                            </div>
+                        </div>
+                        <div class="p-3 rounded-xl shadow-md card-gradient">
+                            <div class="w-full h-40 rounded-md text-white flex flex-col justify-between p-4" style="background: linear-gradient(135deg, #1A2980, #26D0CE);">
+                                 <div class="font-bold text-xl leading-tight">The Silent<br>Cipher</div>
+                                <div class="text-right text-sm opacity-80">by J. Doe</div>
+                            </div>
+                        </div>
+                     </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="card-gradient p-8 rounded-2xl shadow-lg">
+            <h2 class="text-3xl font-bold text-center mb-10">You're in Control</h2>
+             <div class="grid grid-cols-1 md:grid-cols-3 gap-8 text-center">
+                <div class="flex flex-col items-center">
+                     <div class="icon-circle mb-4" style="background-color: #FFD166;">
+                        <i class="fa-solid fa-download fa-2x"></i>
+                    </div>
+                    <h3 class="text-xl font-semibold mb-2">Export Your Data</h3>
+                    <p class="text-gray-600">Save a full backup of your library as a JSON file anytime.</p>
+                </div>
+                <div class="flex flex-col items-center">
+                     <div class="icon-circle mb-4" style="background-color: #118AB2;">
+                        <i class="fa-solid fa-upload fa-2x"></i>
+                    </div>
+                    <h3 class="text-xl font-semibold mb-2">Import Anywhere</h3>
+                    <p class="text-gray-600">Move your data to a new browser or computer with ease.</p>
+                </div>
+                <div class="flex flex-col items-center">
+                     <div class="icon-circle mb-4" style="background-color: #EF476F;">
+                        <i class="fa-solid fa-trash-can-arrow-up fa-2x"></i>
+                    </div>
+                    <h3 class="text-xl font-semibold mb-2">Shred & Delete</h3>
+                    <p class="text-gray-600">Permanently remove any book from your library with a single click.</p>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <footer class="text-center p-8 bg-gray-100 mt-10">
+        <p class="font-semibold text-gray-700">BookHawk is a lightweight, private, and secure application.</p>
+        <p class="text-sm text-gray-500 mt-2">No installation required. No special permissions needed. Works on all modern browsers.</p>
+    </footer>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const ctx = document.getElementById('streakChart').getContext('2d');
+            const data = {
+                labels: ['Current Streak', 'Remaining'],
+                datasets: [{
+                    label: '30-Day Goal',
+                    data: [21, 9],
+                    backgroundColor: ['#EF476F', '#FDECF2'],
+                    borderColor: ['#EF476F', '#FDECF2'],
+                    borderWidth: 1,
+                    cutout: '80%',
+                }]
+            };
+
+            new Chart(ctx, {
+                type: 'doughnut',
+                data: data,
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: false
+                        },
+                        tooltip: {
+                            enabled: false
+                        }
+                    }
+                }
+            });
+        });
+    </script>
+</body>
+</html>

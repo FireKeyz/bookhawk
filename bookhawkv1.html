@@ -1,0 +1,900 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BookHawk - Reading Tracker</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Playfair+Display:wght@700;900&family=Lora:ital,wght@0,400;1,700&family=Roboto+Slab:wght@400;700&family=Source+Sans+Pro:wght@400;600&family=Metal+Mania&family=Special+Elite&family=Space+Grotesk&family=Edu+QLD+Beginner&family=Montserrat+Alternates&family=Kalam:wght@700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --bg-start: 245, 240, 232; /* Softer Cream */
+            --bg-end: 228, 220, 209; /* Tan accent */
+            --text-color: #3D2C22; /* Dark Brown */
+            --subtle-text-color: #8D7B68; /* Muted Brown */
+            --card-bg-start: 255, 255, 255;
+            --card-bg-end: 249, 245, 240;
+            --card-border: #D7C6B4;
+            --sidebar-bg: #FCFBF9;
+            --icon-color: #A49585;
+            --icon-active-color: #C0392B; /* Terra Cotta */
+            --button-bg-start: 86, 56, 44; /* Rich Brown */
+            --button-bg-end: 61, 44, 34;
+            --button-text-color: #ffffff;
+            --accent-color: #D35400; /* Pumpkin */
+            --modal-overlay-bg: rgba(0, 0, 0, 0.5);
+            --star-color: #f39c12; /* Yellow */
+            --read-day-bg: 46, 139, 87; /* Sea Green */
+            --read-day-text: 255, 255, 255;
+            --drop-target-border: #D35400;
+            --shelf-color-main: #8B4513;
+            --shelf-color-highlight: #A05A2C;
+        }
+
+        .dark {
+            --bg-start: 20, 30, 48; --bg-end: 36, 59, 85;
+            --text-color: #e0e0e0; --subtle-text-color: #95a5a6;
+            --card-bg-start: 44, 62, 80; --card-bg-end: 52, 73, 94;
+            --card-border: #3a506b; --sidebar-bg: #1c2a3e;
+            --icon-color: #bdc3c7; --icon-active-color: #e67e22; /* Carrot */
+            --button-bg-start: 230, 126, 34; --button-bg-end: 211, 84, 0;
+            --button-text-color: #ffffff; --accent-color: #e67e22;
+            --read-day-bg: 230, 126, 34; /* Carrot */
+            --read-day-text: 255, 255, 255;
+            --drop-target-border: #e67e22;
+            --shelf-color-main: #5f9ea0;
+            --shelf-color-highlight: #66cdaa;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: linear-gradient(to bottom right, rgb(var(--bg-start)), rgb(var(--bg-end)));
+            color: var(--text-color);
+            transition: background 0.3s, color 0.3s;
+        }
+
+        .main-container { display: flex; height: 100vh; }
+        .sidebar { width: 80px; background-color: var(--sidebar-bg); transition: background-color 0.3s; box-shadow: 2px 0 10px rgba(0,0,0,0.1); z-index: 10; }
+        .content { flex-grow: 1; padding: 2rem; overflow-y: auto; }
+        .nav-link { color: var(--icon-color); }
+        .nav-link.active { color: var(--icon-active-color); background-color: rgba(var(--icon-active-color), 0.1); }
+        .page { display: none; }
+        .page.active { display: block; animation: fadeIn 0.5s ease-in-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+        .widget, .book-card, .calendar-container { background: linear-gradient(145deg, rgb(var(--card-bg-start)), rgb(var(--card-bg-end))); border: 1px solid var(--card-border); }
+        .btn-gradient { background: linear-gradient(to right, rgb(var(--button-bg-start)), rgb(var(--button-bg-end))); color: var(--button-text-color); }
+
+        .modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background-color: var(--modal-overlay-bg); display: flex; align-items: center; justify-content: center; z-index: 50; opacity: 0; pointer-events: none; transition: opacity 0.3s ease; }
+        .modal-overlay.active { opacity: 1; pointer-events: auto; }
+        .modal-content {
+            background: linear-gradient(145deg, rgb(var(--card-bg-start)), rgb(var(--card-bg-end)));
+            border: 1px solid var(--card-border);
+            padding: 1.5rem;
+            border-radius: 1rem;
+            max-width: 90vw;
+            width: 500px;
+            transform: scale(0.95);
+            transition: transform 0.3s ease;
+            max-height: 90vh;
+            display: flex;
+            flex-direction: column;
+        }
+        .modal-overlay.active .modal-content { transform: scale(1); }
+
+        .toggle-switch input:checked + .slider { background-color: var(--accent-color); }
+        .toggle-switch { position: relative; display: inline-block; width: 60px; height: 34px; }
+        .toggle-switch input { opacity: 0; width: 0; height: 0; }
+        .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #ccc; transition: .4s; border-radius: 34px; }
+        .slider:before { position: absolute; content: ""; height: 26px; width: 26px; left: 4px; bottom: 4px; background-color: white; transition: .4s; border-radius: 50%; }
+        input:checked + .slider:before { transform: translateX(26px); }
+
+        /* Calendar */
+        .calendar { display: grid; grid-template-columns: repeat(7, 1fr); gap: 0.5rem; }
+        .calendar-day { text-align: center; display: flex; align-items: center; justify-content: center; height: 2.5rem;}
+        .day-number { display: inline-flex; align-items: center; justify-content: center; width: 2.5rem; height: 2.5rem; border-radius: 50%; transition: all 0.2s; }
+        .calendar-day:not(.disabled):not(.other-month) { cursor: pointer; }
+        .calendar-day:not(.disabled):not(.other-month):hover .day-number { background-color: rgba(var(--icon-active-color), 0.1); }
+        .calendar-day.disabled .day-number { color: var(--subtle-text-color); opacity: 0.5; cursor: not-allowed; }
+        .calendar-day.other-month .day-number { color: var(--subtle-text-color); opacity: 0.6; }
+        .day-name { font-weight: bold; color: var(--subtle-text-color); font-size: 0.8rem; margin-bottom: 0.5rem; text-align: center; }
+        .day-number.today { text-decoration: underline; text-decoration-thickness: 2px; text-underline-offset: 4px; }
+        .day-number.read-day {
+            background-color: rgb(var(--read-day-bg));
+            color: rgb(var(--read-day-text));
+            box-shadow: 0 0 8px rgba(var(--read-day-bg), 0.6);
+        }
+
+        /* Bookshelf */
+        .shelf-container {
+            position: relative;
+            padding: 2rem 1.5rem 1.5rem 1.5rem;
+        }
+        .shelf-container::before { /* Top plank */
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 10px;
+            background: linear-gradient(to right, var(--shelf-color-main), var(--shelf-color-highlight), var(--shelf-color-main));
+            border-radius: 3px 3px 0 0;
+            box-shadow: 0 -1px 2px rgba(0,0,0,0.2);
+        }
+        .shelf-container::after { /* Bottom plank */
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 15px;
+            background: linear-gradient(to right, var(--shelf-color-main), var(--shelf-color-highlight), var(--shelf-color-main));
+            border-radius: 0 0 3px 3px;
+            box-shadow: 0 4px 5px rgba(0,0,0,0.3);
+        }
+        
+        .shelf-grid {
+             border-left: 10px solid var(--shelf-color-main);
+             border-right: 10px solid var(--shelf-color-main);
+             box-shadow: inset 0 0 10px rgba(0,0,0,0.1);
+             padding: 1rem 0.5rem;
+             border-radius: 2px;
+        }
+
+        /* Book Card */
+        .book-card { min-width: 0; position: relative; }
+        .book-card-clickable { cursor: pointer; }
+        .book-cover { width: 100%; height: 150px; border-radius: 0.5rem; color: white; display: flex; flex-direction: column; justify-content: space-between; padding: 1rem; text-shadow: 1px 1px 3px rgba(0,0,0,0.7); overflow: hidden; }
+        .cover-title { font-weight: bold; font-size: 1.8rem; line-height: 1.1; word-break: break-word; }
+        .cover-author { font-size: 0.9rem; font-style: italic; }
+        .shred-btn { position: absolute; bottom: 0.75rem; right: 0.75rem; }
+        .book-card.dragging { opacity: 0.5; transform: scale(0.95); }
+
+        /* Stats Widget */
+        .stat-row { display: flex; justify-content: space-between; align-items: center; padding: 0.5rem 0; }
+        .stat-label-group { display: flex; align-items: center; gap: 0.75rem; }
+        .stat-label { font-size: 1.1rem; font-weight: 500; color: var(--subtle-text-color);}
+        .stat-icon { font-size: 1.2rem; color: var(--accent-color); width: 24px; text-align: center; }
+        .stat-icon.fa-book, .stat-icon.fa-book-open { color: #8e44ad; }
+        .stat-value { font-size: 2.5rem; font-weight: bold; }
+
+        /* Star Rating */
+        .star-rating .fa-star { color: #dcdcdc; cursor: pointer; transition: color 0.2s; }
+        .star-rating .fa-star.hover,
+        .star-rating .fa-star.active { color: var(--star-color); }
+        .star-rating-display .fa-star.active { color: var(--star-color); }
+
+        #homeTitle:focus { outline: 2px solid var(--accent-color); border-radius: 0.25rem; padding: 0 0.25rem; }
+        .edit-icon { transition: opacity 0.2s; }
+        .editable-container:hover .edit-icon { opacity: 1; }
+
+        input[type="text"], input[type="text"], textarea, select { color: var(--text-color); }
+        .dark input[type="text"], .dark input[type="text"], .dark textarea, .dark select { color: var(--text-color); }
+        
+        .drop-target {
+            border: 2px dashed var(--drop-target-border);
+            background-color: rgba(var(--icon-active-color), 0.1);
+        }
+    </style>
+</head>
+<body class="antialiased">
+
+    <div class="main-container">
+        <!-- Sidebar -->
+        <aside class="sidebar flex flex-col items-center py-8 space-y-8">
+            <div class="font-black text-4xl" style="font-family: 'Kalam', cursive; color: var(--icon-active-color); line-height: 1;">
+                BH
+            </div>
+            <nav class="flex flex-col items-center space-y-6">
+                <a href="#home" class="nav-link p-4 rounded-xl" data-page="home" title="Home"><i class="fa-solid fa-house fa-lg"></i></a>
+                <a href="#settings" class="nav-link p-4 rounded-xl" data-page="settings" title="Settings"><i class="fa-solid fa-cog fa-lg"></i></a>
+                <a href="#info" class="nav-link p-4 rounded-xl" data-page="info" title="Information"><i class="fa-solid fa-circle-info fa-lg"></i></a>
+            </nav>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="content">
+            <!-- Home Page -->
+            <section id="home" class="page">
+                <div class="flex justify-between items-center mb-8">
+                    <div class="editable-container flex items-center gap-4">
+                        <h1 id="homeTitle" class="text-4xl font-bold" title="Click the icon to edit">Home</h1>
+                        <i id="editTitleBtn" class="fa-solid fa-pencil text-xl text-gray-400 cursor-pointer opacity-0 edit-icon"></i>
+                    </div>
+                    <button id="addBookBtn" class="btn-gradient px-5 py-3 rounded-lg font-semibold shadow-md hover:opacity-90 transition-opacity flex items-center gap-2"><i class="fa-solid fa-plus"></i> Add Book</button>
+                </div>
+                <!-- Stats & Calendar -->
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-12">
+                    <div class="widget p-6 rounded-2xl shadow-lg lg:col-span-1">
+                        <h2 class="text-xl font-semibold mb-4 text-center">Reading Stats</h2>
+                        <div class="space-y-4">
+                           <div class="stat-row"><div class="stat-label-group"><i class="stat-icon fa-solid fa-book"></i><span class="stat-label">Books Read</span></div><span id="booksReadStat" class="stat-value">0</span></div>
+                           <div class="stat-row"><div class="stat-label-group"><i class="stat-icon fa-solid fa-book-open"></i><span class="stat-label">Pages Read</span></div><span id="pagesReadStat" class="stat-value">0</span></div>
+                           <div class="stat-row"><div class="stat-label-group"><i class="stat-icon fa-solid fa-fire-flame-curved"></i><span class="stat-label">Reading Streak</span></div><span id="currentStreak" class="stat-value">0</span></div>
+                           <div class="stat-row"><div class="stat-label-group"><i class="stat-icon fa-solid fa-trophy"></i><span class="stat-label">Longest Streak</span></div><span id="longestStreak" class="stat-value">0</span></div>
+                        </div>
+                    </div>
+                    <div class="calendar-container p-6 rounded-2xl shadow-lg lg:col-span-2">
+                        <div class="flex justify-between items-center mb-4"><button id="prevMonthBtn" class="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700">&lt;</button><h2 id="calendarTitle" class="text-xl font-semibold"></h2><button id="nextMonthBtn" class="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700">&gt;</button></div>
+                        <div id="calendarHeader" class="grid grid-cols-7 gap-2 text-center"></div>
+                        <div id="calendarGrid" class="calendar"></div>
+                    </div>
+                </div>
+                <!-- Bookshelves -->
+                <div id="bookshelves" class="space-y-12"></div>
+            </section>
+
+            <!-- Settings Page -->
+            <section id="settings" class="page">
+                <h1 class="text-4xl font-bold mb-8">Settings</h1>
+                <div class="space-y-8">
+                    <div class="widget p-8 rounded-2xl shadow-lg max-w-md">
+                        <h2 class="text-xl font-semibold mb-4">Display</h2>
+                        <div class="flex items-center justify-between"><span class="text-lg">Dark Mode</span><label class="toggle-switch"><input type="checkbox" id="themeToggle"><span class="slider"></span></label></div>
+                    </div>
+                    <div class="widget p-8 rounded-2xl shadow-lg max-w-md">
+                        <h2 class="text-xl font-semibold mb-4">Data Management</h2>
+                        <div class="space-y-6">
+                            <div>
+                                <div class="flex gap-4">
+                                    <button id="exportDataBtn" class="btn-gradient px-6 py-3 rounded-lg font-semibold w-full">Export Data</button>
+                                    <label for="importDataInput" class="btn-gradient px-6 py-3 rounded-lg font-semibold cursor-pointer w-full text-center">Import Data</label>
+                                    <input type="file" id="importDataInput" class="hidden" accept=".json">
+                                </div>
+                                <p class="text-sm mt-2" style="color: var(--subtle-text-color);">Save your data to a file or load it on another device/browser.</p>
+                            </div>
+                            <div class="border-t pt-6" style="border-color: var(--card-border);">
+                                 <h3 class="font-semibold text-lg text-red-600 dark:text-red-500">Danger Zone</h3>
+                                <button id="clearData" class="mt-2 px-6 py-3 rounded-lg font-semibold bg-red-600 text-white hover:bg-red-700 transition-colors w-full">Clear All Data</button>
+                                <p class="text-sm mt-2" style="color: var(--subtle-text-color);">Permanently delete all books and logs. This cannot be undone.</p>
+                            </div>
+                        </div>
+                    </div>
+                     <div class="widget p-8 rounded-2xl shadow-lg max-w-md">
+                        <h2 class="text-xl font-semibold mb-4">Developer Settings</h2>
+                        <div>
+                            <button id="downloadLogBtn" class="btn-gradient px-6 py-3 rounded-lg font-semibold w-full">Download Debug Log</button>
+                            <p class="text-sm mt-2" style="color: var(--subtle-text-color);">Download a text file containing the current application state for debugging purposes.</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+            
+            <!-- Info Page -->
+            <section id="info" class="page">
+                <h1 class="text-4xl font-bold mb-8">How to Use BookHawk</h1>
+                <div class="widget p-8 rounded-2xl shadow-lg max-w-3xl space-y-6 text-base leading-relaxed">
+                    <div>
+                        <h2 class="text-2xl font-semibold mb-2">🏠 The Home Page</h2>
+                        <p>This is your main dashboard where all the magic happens. Here you can add new books to your collection, see a quick overview of your reading statistics, and track your daily progress on the calendar.</p>
+                        <p class="mt-2">To personalize your experience, click the little pencil icon <i class="fa-solid fa-pencil"></i> next to the main title to set your name. Press Enter or click away to save it.</p>
+                    </div>
+                    <div class="border-t pt-4" style="border-color: var(--card-border);">
+                        <h2 class="text-2xl font-semibold mb-2">📖 Managing Your Bookshelves</h2>
+                        <p>Your library is organized into three shelves: <strong style="color:var(--accent-color)">On the Shelf</strong> (for books you want to read), <strong style="color:var(--accent-color)">Reading Shelf</strong> (for books you've started), and <strong style="color:var(--accent-color)">Completed Shelf</strong> (for finished books).</p>
+                        <p class="mt-2">To change a book's status, simply <strong style="color:var(--accent-color)">drag and drop</strong> the book card from one shelf to another. The app will automatically update the book's status and all related stats.</p>
+                        <ul class="list-disc list-inside mt-2 space-y-1">
+                            <li>Clicking anywhere on a book's card will open a details view where you can add a star rating and a written review.</li>
+                            <li>When you move a book to the 'Completed Shelf', the review pop-up will appear automatically.</li>
+                            <li>To permanently delete a book, click the shredder icon <i class="fa-solid fa-trash-can-arrow-up"></i> in the corner of the card. This action is irreversible.</li>
+                        </ul>
+                    </div>
+                    <div class="border-t pt-4" style="border-color: var(--card-border);">
+                        <h2 class="text-2xl font-semibold mb-2">🗓️ Daily Logging</h2>
+                        <p>The calendar is your visual reading diary. Click any past or present day to open the log entry modal. A dropdown will appear, letting you select any book from your "Reading Shelf." Logging a book here marks the day as a reading day, which updates your reading streaks.</p>
+                    </div>
+                    <div class="border-t pt-4" style="border-color: var(--card-border);">
+                        <h2 class="text-2xl font-semibold mb-2">💾 Data Management</h2>
+                        <p>All your data is stored locally in your browser. In the Settings menu, you'll find powerful tools to manage this data:</p>
+                        <ul class="list-disc list-inside mt-2 space-y-1">
+                            <li><strong style="color:var(--accent-color)">Export Data:</strong> Save a complete backup of your library (all books, logs, and settings) to a JSON file on your computer.</li>
+                            <li><strong style="color:var(--accent-color)">Import Data:</strong> Load a previously exported BookHawk data file to restore your library. This is perfect for moving your data to a new computer or browser.</li>
+                            <li><strong style="color:var(--accent-color)">Clear All Data:</strong> Permanently resets the entire application, deleting all books and history. Use with caution!</li>
+                        </ul>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- Modals -->
+    <div id="addBookModal" class="modal-overlay"><div class="modal-content"><h2 class="text-2xl font-bold mb-4">Add a New Book</h2><form id="addBookForm"><input type="text" id="bookTitle" placeholder="Title" class="w-full p-2 mb-3 rounded-lg bg-transparent border" style="border-color: var(--card-border);" required><input type="text" id="bookAuthor" placeholder="Author" class="w-full p-2 mb-3 rounded-lg bg-transparent border" style="border-color: var(--card-border);" required><input type="text" inputmode="numeric" id="bookPages" placeholder="Number of Pages" class="w-full p-2 mb-4 rounded-lg bg-transparent border" style="border-color: var(--card-border);" required pattern="[0-9]+"><div class="flex justify-end gap-4"><button type="button" class="cancel-btn px-6 py-2 rounded-lg font-semibold">Cancel</button><button type="submit" class="btn-gradient px-6 py-2 rounded-lg font-semibold">Add Book</button></div></form></div></div>
+    <div id="logEntryModal" class="modal-overlay"><div class="modal-content"><h2 id="logEntryTitle" class="text-2xl font-bold mb-4"></h2><div class="flex-grow overflow-y-auto mb-4"><ul id="logActivities" class="space-y-2"></ul></div><form id="addActivityForm" class="flex gap-2"><select id="activityBookSelect" class="w-full p-2 rounded-lg bg-transparent border" style="border-color: var(--card-border);" required></select><button type="submit" class="btn-gradient p-2 rounded-lg font-semibold flex-shrink-0"><i class="fa-solid fa-plus"></i> Add</button></form><div class="flex justify-between items-center mt-6"><button id="deleteLogBtn" class="px-4 py-2 rounded-lg font-semibold bg-red-600 text-white text-sm">Delete Day's Log</button><button type="button" class="cancel-btn px-6 py-2 rounded-lg font-semibold">Close</button></div></div></div>
+    <div id="bookDetailModal" class="modal-overlay"><div class="modal-content"><div id="bookDetailContent" class="flex-grow overflow-y-auto"></div><div class="flex justify-end gap-4 pt-4"><button type="button" class="cancel-btn px-6 py-2 rounded-lg font-semibold">Close</button></div></div></div>
+    <div id="messageModal" class="modal-overlay"><div class="modal-content text-center space-y-6"><h2 id="messageModalTitle" class="text-2xl font-bold"></h2><p id="messageModalText"></p><div id="messageModalButtons" class="flex justify-center gap-4"></div></div></div>
+
+    <script>
+    document.addEventListener('DOMContentLoaded', () => {
+        const APP_NAMESPACE = 'bookHawkApp';
+        const defaultState = { theme: 'light', userName: '', activePage: 'home', books: [], readingLog: {} };
+        let state = JSON.parse(localStorage.getItem(APP_NAMESPACE)) || defaultState;
+        let CDate = new Date();
+        const BOOK_FONTS = ["'Metal Mania', cursive", "'Special Elite', cursive", "'Space Grotesk', sans-serif", "'Edu QLD Beginner', cursive", "'Montserrat Alternates', sans-serif"];
+
+        const $ = (selector) => document.querySelector(selector);
+        const $$ = (selector) => document.querySelectorAll(selector);
+
+        const saveState = () => localStorage.setItem(APP_NAMESPACE, JSON.stringify(state));
+
+        // --- Modal Management ---
+        const showModal = (modalId) => $(`#${modalId}`)?.classList.add('active');
+        const hideModals = () => $$('.modal-overlay').forEach(m => m.classList.remove('active'));
+        $$('.cancel-btn').forEach(btn => btn.addEventListener('click', hideModals));
+
+        const showMessage = (title, text, buttons = [{ text: 'OK', class: 'btn-gradient', action: hideModals }]) => {
+            $('#messageModalTitle').textContent = title;
+            $('#messageModalText').innerHTML = text;
+            const buttonsContainer = $('#messageModalButtons');
+            buttonsContainer.innerHTML = '';
+            buttons.forEach(btnInfo => {
+                const button = document.createElement('button');
+                button.textContent = btnInfo.text;
+                button.className = `px-6 py-2 rounded-lg font-semibold ${btnInfo.class || ''}`;
+                button.onclick = btnInfo.action;
+                buttonsContainer.appendChild(button);
+            });
+            showModal('messageModal');
+        };
+        const showConfirmation = (title, text, onConfirm) => showMessage(title, text, [{ text: 'Cancel', action: hideModals }, { text: 'Confirm', class: 'bg-red-600 text-white', action: () => { onConfirm(); hideModals(); } }]);
+
+        // --- Page Navigation ---
+        const showPage = (pageId) => {
+            $$('.page').forEach(p => p.classList.toggle('active', p.id === pageId));
+            $$('.nav-link').forEach(l => l.classList.toggle('active', l.dataset.page === pageId));
+            state.activePage = pageId;
+            saveState();
+        };
+        $$('.nav-link').forEach(link => link.addEventListener('click', (e) => { e.preventDefault(); showPage(link.dataset.page); }));
+
+        // --- Theme & Profile ---
+        const applyTheme = (theme) => {
+            document.documentElement.classList.toggle('dark', theme === 'dark');
+            $('#themeToggle').checked = theme === 'dark';
+            state.theme = theme;
+            saveState();
+        };
+        $('#themeToggle').addEventListener('change', (e) => applyTheme(e.target.checked ? 'dark' : 'light'));
+        
+        const renderHeader = () => {
+            const titleEl = $('#homeTitle');
+            titleEl.textContent = state.userName || 'Home';
+        };
+
+        const homeTitleEl = $('#homeTitle');
+        $('#editTitleBtn').addEventListener('click', () => {
+            homeTitleEl.contentEditable = true;
+            homeTitleEl.focus();
+            document.execCommand('selectAll', false, null);
+        });
+        homeTitleEl.addEventListener('blur', () => {
+            homeTitleEl.contentEditable = false;
+            const newName = homeTitleEl.textContent.trim();
+            if (newName.length > 0) {
+                state.userName = newName;
+                saveState();
+            }
+            renderHeader(); // Re-render to show new name or revert to old one
+        });
+        homeTitleEl.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                homeTitleEl.blur();
+            }
+        });
+
+        // --- Data Management ---
+        $('#exportDataBtn').addEventListener('click', () => {
+            const dataStr = JSON.stringify(state, null, 2);
+            const dataBlob = new Blob([dataStr], {type: "application/json"});
+            const url = URL.createObjectURL(dataBlob);
+            const link = document.createElement('a');
+            link.download = `bookhawk_data_${new Date().toISOString().slice(0,10)}.json`;
+            link.href = url;
+            link.click();
+            URL.revokeObjectURL(url);
+        });
+        
+        $('#importDataInput').addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                try {
+                    const importedState = JSON.parse(event.target.result);
+                    if(importedState.books && importedState.readingLog && importedState.theme) {
+                        showConfirmation('Overwrite Data?', 'Are you sure you want to replace all current data with the imported file?', () => {
+                            state = importedState;
+                            saveState();
+                            applyTheme(state.theme);
+                            renderApp();
+                            showMessage('Success', 'Data imported successfully!');
+                        });
+                    } else {
+                        throw new Error("Invalid file format.");
+                    }
+                } catch (err) {
+                    showMessage('Import Error', 'The selected file is not a valid BookHawk data file.');
+                }
+            };
+            reader.readAsText(file);
+            e.target.value = '';
+        });
+
+        $('#clearData').addEventListener('click', () => {
+            showConfirmation('Clear All Data', 'Are you sure? This will permanently delete everything.', () => {
+                state = JSON.parse(JSON.stringify(defaultState));
+                applyTheme(state.theme);
+                saveState();
+                renderApp();
+                showMessage('Data Cleared', 'All your data has been deleted.');
+            });
+        });
+
+        $('#downloadLogBtn').addEventListener('click', () => {
+            const logData = {
+                timestamp: new Date().toISOString(),
+                currentState: state
+            };
+            const logStr = JSON.stringify(logData, null, 2);
+            const logBlob = new Blob([logStr], {type: "text/plain"});
+            const url = URL.createObjectURL(logBlob);
+            const link = document.createElement('a');
+            link.download = `bookhawk_debug_log_${new Date().toISOString().slice(0,10)}.txt`;
+            link.href = url;
+            link.click();
+            URL.revokeObjectURL(url);
+        });
+
+        // --- Book Management ---
+        $('#addBookBtn').addEventListener('click', () => showModal('addBookModal'));
+        $('#addBookForm').addEventListener('submit', (e) => {
+            e.preventDefault();
+            const title = $('#bookTitle').value.trim();
+            const author = $('#bookAuthor').value.trim();
+            const pages = parseInt($('#bookPages').value);
+
+            const isDuplicate = state.books.some(book => book.title.toLowerCase() === title.toLowerCase() && book.author.toLowerCase() === author.toLowerCase());
+
+            if (isDuplicate) {
+                showMessage('Duplicate Book', 'This book already exists in your library.');
+                return;
+            }
+
+            if (isNaN(pages) || pages < 1) {
+                showMessage("Invalid Input", "Please enter a valid number of pages (must be 1 or greater).");
+                return;
+            }
+            const newBook = { id: Date.now(), title, author, pages, currentPage: 0, status: 'toread', rating: 0, review: '', dateAdded: new Date().toISOString(), dateCompleted: null };
+            if(newBook.title && newBook.author){
+                 state.books.push(newBook);
+                saveState();
+                renderApp();
+                hideModals();
+                e.target.reset();
+            }
+        });
+        
+        window.deleteBook = (bookId) => {
+             const bookToDelete = state.books.find(b => b.id === bookId);
+             if(!bookToDelete) return;
+             
+             showConfirmation('Shred Book?', `Are you sure you want to permanently delete "${bookToDelete.title}" and all its reading log entries?`, () => {
+                 state.books = state.books.filter(b => b.id !== bookId);
+                 Object.entries(state.readingLog).forEach(([date, log]) => {
+                     log.activities = log.activities.filter(title => title !== bookToDelete.title);
+                     if(log.activities.length === 0) {
+                         delete state.readingLog[date];
+                     }
+                 });
+                 saveState();
+                 renderApp();
+             });
+        }
+
+        window.updateBookStatus = (bookId, newStatus) => {
+            const book = state.books.find(b => b.id === bookId);
+            if (book) {
+                book.status = newStatus;
+                if(newStatus === 'reading' && !book.dateStarted) book.dateStarted = new Date().toISOString();
+                
+                if(newStatus === 'completed') {
+                    book.dateCompleted = new Date().toISOString();
+                } else {
+                    book.dateCompleted = null;
+                }
+                
+                book.currentPage = newStatus === 'completed' ? book.pages : (newStatus === 'toread' ? 0 : book.currentPage);
+                saveState();
+                renderApp();
+
+                if (newStatus === 'completed') {
+                   setTimeout(() => openBookDetailModal(bookId), 100);
+                }
+            }
+        };
+
+        // --- Calendar & Reading Log ---
+        const renderCalendar = () => {
+            CDate.setDate(1);
+            const month = CDate.getMonth(), year = CDate.getFullYear();
+            $('#calendarTitle').innerText = `${CDate.toLocaleString("default", { month: "long" })} ${year}`;
+            
+            const calendarGrid = $('#calendarGrid'), header = $('#calendarHeader');
+            calendarGrid.innerHTML = '';
+            header.innerHTML = ['S', 'M', 'T', 'W', 'T', 'F', 'S'].map(d => `<div class="day-name">${d}</div>`).join('');
+
+            const firstDay = CDate.getDay();
+            for (let i = 0; i < firstDay; i++) calendarGrid.innerHTML += `<div class="calendar-day other-month"></div>`;
+
+            const lastDate = new Date(year, month + 1, 0).getDate();
+            const today = new Date();
+            today.setHours(0,0,0,0);
+
+            for (let i = 1; i <= lastDate; i++) {
+                const dayEl = document.createElement('div');
+                const thisDate = new Date(year, month, i);
+                dayEl.className = 'calendar-day';
+                if(thisDate > today) dayEl.classList.add('disabled');
+
+                const dayNumber = document.createElement('span');
+                dayNumber.className = 'day-number';
+                dayNumber.innerText = i;
+                
+                if (i === today.getDate() && month === today.getMonth() && year === today.getFullYear()) dayNumber.classList.add('today');
+                
+                const dateString = `${year}-${String(month + 1).padStart(2, '0')}-${String(i).padStart(2, '0')}`;
+                if (state.readingLog[dateString]?.didRead) {
+                    dayNumber.classList.add('read-day');
+                }
+
+                dayEl.appendChild(dayNumber);
+                if(!dayEl.classList.contains('disabled')) {
+                    dayEl.addEventListener('click', () => openLogEntryModal(dateString));
+                }
+                calendarGrid.appendChild(dayEl);
+            }
+        };
+        $('#prevMonthBtn').addEventListener('click', () => { CDate.setMonth(CDate.getMonth() - 1); renderCalendar(); });
+        $('#nextMonthBtn').addEventListener('click', () => { CDate.setMonth(CDate.getMonth() + 1); renderCalendar(); });
+
+        const openLogEntryModal = (dateString) => {
+            const date = new Date(dateString + 'T00:00:00');
+            $('#logEntryTitle').textContent = `Log for ${date.toLocaleDateString('en-US', { month: 'long', day: 'numeric' })}`;
+            $('#addActivityForm').onsubmit = (e) => { e.preventDefault(); addActivity(dateString); };
+            $('#deleteLogBtn').onclick = () => deleteLog(dateString);
+            
+            const bookSelect = $('#activityBookSelect');
+            bookSelect.innerHTML = '<option value="">Select a book...</option>';
+            state.books
+                .filter(book => book.status === 'reading')
+                .forEach(book => bookSelect.innerHTML += `<option value="${book.title}">${book.title}</option>`);
+
+            renderActivities(dateString);
+            showModal('logEntryModal');
+        };
+        
+        const renderActivities = (dateString) => {
+            const activitiesList = $('#logActivities');
+            activitiesList.innerHTML = '';
+            const log = state.readingLog[dateString];
+            if (log?.activities.length > 0) {
+                log.activities.forEach(activity => {
+                    const li = document.createElement('li');
+                    li.className = 'flex justify-between items-center p-2 rounded-lg';
+                    li.innerHTML = `<span>${activity}</span><button class="text-red-500 text-sm"><i class="fa-solid fa-trash"></i></button>`;
+                    li.querySelector('button').onclick = () => deleteActivity(dateString, activity);
+                    activitiesList.appendChild(li);
+                });
+                $('#deleteLogBtn').style.display = 'block';
+            } else {
+                activitiesList.innerHTML = `<li class="text-center" style="color: var(--subtle-text-color)">No books logged for this day.</li>`;
+                $('#deleteLogBtn').style.display = 'none';
+            }
+        }
+        
+        const addActivity = (dateString) => {
+            const input = $('#activityBookSelect');
+            if (input.value) {
+                if (!state.readingLog[dateString]) state.readingLog[dateString] = { activities: [] };
+                if (!state.readingLog[dateString].activities.includes(input.value)) state.readingLog[dateString].activities.push(input.value);
+                state.readingLog[dateString].didRead = true;
+                saveState();
+                renderActivities(dateString);
+                renderApp();
+                input.value = '';
+            }
+        };
+
+        const deleteActivity = (dateString, title) => {
+            const log = state.readingLog[dateString];
+            if (log) {
+                log.activities = log.activities.filter(a => a !== title);
+                if (log.activities.length === 0) {
+                     delete state.readingLog[dateString];
+                }
+                saveState();
+                renderActivities(dateString);
+                renderApp();
+            }
+        };
+
+        const deleteLog = (dateString) => showConfirmation('Delete Log', `Delete all entries for this day?`, () => { delete state.readingLog[dateString]; saveState(); renderApp(); hideModals(); });
+        
+        // --- Book Detail Modal ---
+        window.openBookDetailModal = (bookId) => {
+            const book = state.books.find(b => b.id === bookId);
+            if (!book) return;
+            const content = $('#bookDetailContent');
+            content.innerHTML = `
+                <h2 class="text-2xl font-bold mb-1">${book.title}</h2>
+                <p class="text-lg mb-4" style="color: var(--subtle-text-color)">by ${book.author}</p>
+                <div class="mb-4">
+                    <h3 class="font-semibold mb-2">My Rating</h3>
+                    <div class="star-rating text-2xl" data-book-id="${bookId}">
+                        ${[...Array(5)].map((_, i) => `<i class="fa-solid fa-star" data-value="${i+1}"></i>`).join('')}
+                    </div>
+                </div>
+                <div>
+                    <h3 class="font-semibold mb-2">My Review</h3>
+                    <div id="reviewDisplay" class="${book.review ? '' : 'hidden'}"><p class="whitespace-pre-wrap">${book.review}</p><button id="editReviewBtn" class="text-sm font-semibold mt-2" style="color:var(--accent-color)">Edit</button></div>
+                    <div id="reviewEdit" class="${book.review ? 'hidden' : ''}"><textarea id="reviewTextarea" class="w-full p-2 rounded-lg bg-transparent border" style="border-color: var(--card-border);" rows="5">${book.review}</textarea><button id="saveReviewBtn" class="btn-gradient px-4 py-2 mt-2 rounded-lg font-semibold">Save Review</button></div>
+                </div>
+            `;
+            
+            const starContainer = content.querySelector('.star-rating');
+            const stars = starContainer.querySelectorAll('.fa-star');
+            
+            const setStarRating = (rating) => {
+                stars.forEach(star => {
+                    star.classList.toggle('active', parseInt(star.dataset.value) <= rating);
+                });
+            };
+
+            setStarRating(book.rating);
+
+            starContainer.addEventListener('mouseover', e => {
+                if(e.target.matches('.fa-star')) {
+                    const hoverValue = parseInt(e.target.dataset.value);
+                    stars.forEach(star => {
+                        star.classList.toggle('hover', parseInt(star.dataset.value) <= hoverValue);
+                    });
+                }
+            });
+
+            starContainer.addEventListener('mouseout', () => {
+                stars.forEach(star => star.classList.remove('hover'));
+            });
+
+            starContainer.addEventListener('click', e => {
+                 if(e.target.matches('.fa-star')) {
+                    const clickValue = parseInt(e.target.dataset.value);
+                    book.rating = clickValue;
+                    saveState();
+                    setStarRating(clickValue);
+                    renderBooks(); // Update the book card on the home page
+                 }
+            });
+
+            $('#editReviewBtn')?.addEventListener('click', () => {
+                $('#reviewDisplay').classList.add('hidden');
+                $('#reviewEdit').classList.remove('hidden');
+            });
+            $('#saveReviewBtn')?.addEventListener('click', () => {
+                book.review = $('#reviewTextarea').value;
+                saveState();
+                $('#reviewDisplay p').textContent = book.review;
+                $('#reviewDisplay').classList.remove('hidden');
+                $('#reviewEdit').classList.add('hidden');
+            });
+            showModal('bookDetailModal');
+        };
+
+        // --- Rendering ---
+        const generateBookCover = (book) => {
+            const colors = [['#004e92', '#000428'],['#43C6AC', '#191654'],['#c94b4b', '#4b134f'],['#2c3e50', '#fd746c'],['#DA4453', '#89216B'],['#1A2980', '#26D0CE']];
+            const hashCode = s => s.split('').reduce((a, b) => { a = ((a << 5) - a) + b.charCodeAt(0); return a & a }, 0);
+            const colorPair = colors[Math.abs(hashCode(book.title)) % colors.length];
+            const authorInitials = book.author.split(' ').map(n => n[0]).join('');
+            const font = BOOK_FONTS[Math.abs(hashCode(book.title)) % BOOK_FONTS.length];
+            return `<div class="book-cover" style="background: linear-gradient(135deg, ${colorPair[0]}, ${colorPair[1]})"><div class="cover-title" style="font-family: ${font};">${book.title}</div><div class="flex justify-between items-baseline"><div class="cover-author">${book.author}</div><div class="font-bold text-3xl opacity-70">${authorInitials}</div></div></div>`;
+        };
+
+        const createBookCard = (book) => {
+            const card = document.createElement('div');
+            card.className = 'book-card p-3 rounded-xl shadow-md flex flex-col';
+            card.draggable = true;
+            card.dataset.bookId = book.id;
+
+            let daysToRead = '';
+            if (book.status === 'completed') {
+                const readingDays = Object.entries(state.readingLog).filter(([date, log]) => log.activities.includes(book.title));
+                const totalDays = readingDays.reduce((sum, [date, log]) => {
+                    const booksOnThisDay = log.activities.length;
+                    return sum + (1 / booksOnThisDay);
+                }, 0);
+
+                if(totalDays > 0) {
+                    daysToRead = `<div class="text-xs" style="color: var(--subtle-text-color)"><i class="fa-solid fa-calendar-check"></i> ${totalDays.toFixed(2)} day${totalDays.toFixed(2) !== '1.00' ? 's' : ''}</div>`;
+                }
+            }
+
+            card.innerHTML = `
+                <div class="book-card-clickable flex-grow" onclick="openBookDetailModal(${book.id})">
+                    ${generateBookCover(book)}
+                    <div class="pt-2 flex-grow flex flex-col justify-between">
+                        <div class="star-rating-display text-xs mb-1">
+                           ${[...Array(5)].map((_, i) => `<i class="fa-solid fa-star ${i < book.rating ? 'active' : ''}"></i>`).join('')}
+                        </div>
+                    </div>
+                </div>
+                <div class="flex justify-between items-center mt-auto pt-2">
+                    <div class="flex items-center gap-2">
+                        ${daysToRead}
+                    </div>
+                </div>
+                 <button class="shred-btn text-sm text-red-500 hover:text-red-700 opacity-60 hover:opacity-100 transition-opacity" onclick="event.stopPropagation(); deleteBook(${book.id})" title="Shred Book"><i class="fa-solid fa-trash-can-arrow-up"></i></button>
+            `;
+            card.addEventListener('dragstart', handleDragStart);
+            return card;
+        };
+
+        const renderBooks = () => {
+            const shelves = { toread: [], reading: [], completed: [] };
+            state.books.forEach(book => {
+                if(shelves[book.status]) {
+                    shelves[book.status].push(book);
+                }
+            });
+
+            const shelvesContainer = $('#bookshelves');
+            shelvesContainer.innerHTML = '';
+
+            [
+                { title: 'On the Shelf', key: 'toread' },
+                { title: 'Reading Shelf', key: 'reading' },
+                { title: 'Completed Shelf', key: 'completed' }
+            ].forEach(shelfInfo => {
+                const shelfData = shelves[shelfInfo.key];
+
+                const shelfWrapper = document.createElement('div');
+                shelfWrapper.dataset.status = shelfInfo.key;
+                
+                const shelfTitle = document.createElement('h2');
+                shelfTitle.className = "text-2xl font-bold mb-4";
+                shelfTitle.textContent = shelfInfo.title;
+                shelfWrapper.appendChild(shelfTitle);
+
+                const shelfContainer = document.createElement('div');
+                shelfContainer.className = 'shelf-container';
+                shelfWrapper.appendChild(shelfContainer);
+                
+                const shelfGrid = document.createElement('div');
+                shelfGrid.className = 'shelf-grid grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 min-h-[200px]';
+                shelfContainer.appendChild(shelfGrid);
+
+                shelfData.forEach(book => {
+                    shelfGrid.appendChild(createBookCard(book));
+                });
+                
+                shelfWrapper.addEventListener('dragover', handleDragOver);
+                shelfWrapper.addEventListener('dragleave', handleDragLeave);
+                shelfWrapper.addEventListener('drop', handleDrop);
+
+                shelvesContainer.appendChild(shelfWrapper);
+            });
+        };
+        
+        // --- Drag and Drop Handlers ---
+        function handleDragStart(e) {
+            e.dataTransfer.setData('text/plain', this.dataset.bookId);
+            setTimeout(() => { this.classList.add('dragging'); }, 0);
+        }
+
+        function handleDragOver(e) {
+            e.preventDefault();
+            const targetShelf = e.target.closest('[data-status]');
+            if (targetShelf) {
+                 targetShelf.querySelector('.shelf-container').classList.add('drop-target');
+            }
+        }
+
+        function handleDragLeave(e) {
+             const targetShelf = e.target.closest('[data-status]');
+             if(targetShelf) {
+                targetShelf.querySelector('.shelf-container').classList.remove('drop-target');
+             }
+        }
+
+        function handleDrop(e) {
+            e.preventDefault();
+            const targetShelf = e.target.closest('[data-status]');
+            if (targetShelf) {
+                targetShelf.querySelector('.shelf-container').classList.remove('drop-target');
+                const bookId = parseInt(e.dataTransfer.getData('text/plain'));
+                const newStatus = targetShelf.dataset.status;
+                const book = state.books.find(b => b.id === bookId);
+
+                document.querySelector('.dragging')?.classList.remove('dragging');
+                
+                if (book && book.status !== newStatus) {
+                    updateBookStatus(bookId, newStatus);
+                }
+            }
+        }
+
+        const calculateStreaks = () => {
+            const dates = Object.keys(state.readingLog).filter(d => state.readingLog[d].didRead).sort();
+            if (dates.length === 0) return { current: 0, longest: 0 };
+            
+            let longestStreak = 0;
+            let currentStreak = 0;
+
+            if (dates.length > 0) {
+                longestStreak = 1;
+                currentStreak = 1;
+                for (let i = 1; i < dates.length; i++) {
+                    const prevDate = new Date(dates[i - 1]);
+                    const currDate = new Date(dates[i]);
+                    const diff = (currDate - prevDate) / (1000 * 60 * 60 * 24);
+                    if (diff === 1) {
+                        currentStreak++;
+                    } else {
+                        longestStreak = Math.max(longestStreak, currentStreak);
+                        currentStreak = 1;
+                    }
+                }
+                longestStreak = Math.max(longestStreak, currentStreak);
+                
+                const today = new Date();
+                today.setHours(0,0,0,0);
+                const lastLogDate = new Date(dates[dates.length-1]);
+                const daysSinceLastLog = (today - lastLogDate)/(1000 * 60 * 60 * 24);
+                
+                if (daysSinceLastLog > 1) {
+                    currentStreak = 0;
+                }
+
+            } else {
+                return { current: 0, longest: 0 };
+            }
+           
+            return { current: currentStreak, longest: longestStreak };
+        };
+
+        const formatBigNumber = (num) => {
+            if (num >= 1000) {
+                return (num / 1000).toFixed(1) + 'K';
+            }
+            return num;
+        };
+
+        const renderStats = () => {
+            const completedBooks = state.books.filter(b => b.status === 'completed');
+            $('#booksReadStat').textContent = completedBooks.length;
+            const pagesRead = completedBooks.reduce((sum, book) => sum + book.pages, 0);
+            $('#pagesReadStat').textContent = formatBigNumber(pagesRead);
+            const streaks = calculateStreaks();
+            $('#currentStreak').textContent = streaks.current;
+            $('#longestStreak').textContent = streaks.longest;
+        };
+
+        const renderApp = () => {
+            renderStats();
+            renderBooks();
+            renderCalendar();
+            renderHeader();
+        };
+
+        const init = () => {
+            applyTheme(state.theme);
+            showPage(state.activePage || 'home');
+            renderApp();
+        };
+
+        init();
+    });
+    </script>
+</body>
+</html>
