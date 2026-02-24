@@ -2,6 +2,8 @@
 
 Your personal, private, and powerful reading tracker.
 
+![Bookhawk Homepage](./BookHawk%20homepage.png)
+
 ### ✨ Bring Your Library to Life
 
 * 📚 Add Books Easily: Quickly add any book to your "On the Shelf" list to start building your personal library.
